@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Macro Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #F0F2F5;
+      --surface:    #FFFFFF;
+      --header-bg:  #0D1B2A;
+      --accent:     #E63946;
+      --blue:       #457B9D;
+      --teal:       #2A9D8F;
+      --text:       #1A1A2E;
+      --muted:      #6B7280;
+      --border:     #E5E7EB;
+      --radius:     10px;
+      --shadow:     0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+      --shadow-md:  0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.05);
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      background: var(--header-bg);
+      color: #fff;
+      padding: 0 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      gap: 1rem;
+    }
+
+    .header-title h1 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .header-title p {
+      font-size: .75rem;
+      color: #94A3B8;
+      margin-top: 2px;
+    }
+
+    #refresh-btn {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .45rem 1rem;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 6px;
+      color: #fff;
+      font-size: .8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      white-space: nowrap;
+    }
+
+    #refresh-btn:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.4); }
+    #refresh-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .spinner {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ───────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: .65rem 1.1rem;
+      border-radius: 8px;
+      font-size: .8125rem;
+      font-weight: 500;
+      color: #fff;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.ok  { background: var(--teal); }
+    #toast.err { background: var(--accent); }
+
+    /* ── Main layout ─────────────────────────────────────────────── */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.75rem 2rem 3rem;
+    }
+
+    /* ── Stat cards ──────────────────────────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1300px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width:  900px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width:  640px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
+
+    .stat-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.25rem;
+      box-shadow: var(--shadow);
+      border-top: 3px solid var(--border);
+    }
+
+    .stat-card.accent-red    { border-top-color: var(--accent); }
+    .stat-card.accent-blue   { border-top-color: var(--blue);   }
+    .stat-card.accent-orange { border-top-color: #F4A261;       }
+    .stat-card.accent-teal   { border-top-color: var(--teal);   }
+    .stat-card.accent-slate  { border-top-color: #264653;       }
+    .stat-card.accent-brazil { border-top-color: #009c3b;       }
+
+    .stat-label {
+      font-size: .6875rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+
+    .stat-value {
+      font-size: 1.625rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .stat-sub {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: .35rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Period-over-period change indicators — subtle, not aggressive */
+    .stat-sub.change-pos     { color: #15803d; font-weight: 600; }  /* green-700  */
+    .stat-sub.change-neg     { color: #b91c1c; font-weight: 600; }  /* red-700    */
+    .stat-sub.change-neutral { color: var(--muted); }
+
+    /* ── Data freshness strip ────────────────────────────────────── */
+    .data-freshness {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .75rem;
+      color: var(--muted);
+      margin: -.5rem 0 1.5rem;
+      padding: .5rem .75rem;
+      background: var(--surface);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+    }
+
+    .data-freshness .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--teal);
+      flex-shrink: 0;
+    }
+
+    .data-freshness strong { color: var(--text); font-weight: 600; }
+
+    /* ── Chart grid ──────────────────────────────────────────────── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 900px) { .chart-row { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem 0.5rem;
+      box-shadow: var(--shadow-md);
+    }
+
+    .chart-card.full { grid-column: 1 / -1; }
+
+    .chart-div        { width: 100%; height: 380px; }
+    .chart-div.tall   { height: 480px; }
+
+    /* ── Commentary panel ───────────────────────────────────────── */
+    .commentary-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.5rem;
+      box-shadow: var(--shadow-md);
+      margin-top: 1rem;
+    }
+
+    .commentary-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .commentary-title {
+      font-size: .875rem;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .commentary-meta {
+      font-size: .7rem;
+      color: var(--muted);
+      margin-top: .25rem;
+    }
+
+    .commentary-meta .cache-badge {
+      display: inline-block;
+      padding: .1rem .45rem;
+      border-radius: 4px;
+      background: #EFF6FF;
+      color: var(--blue);
+      font-weight: 600;
+      font-size: .65rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+      margin-left: .35rem;
+    }
+
+    #commentary-btn {
+      flex-shrink: 0;
+      padding: .45rem 1.1rem;
+      background: var(--header-bg);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: .8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+    #commentary-btn:hover   { opacity: .85; }
+    #commentary-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .commentary-body {
+      font-size: .9375rem;
+      line-height: 1.8;
+      color: var(--text);
+      border-left: 3px solid var(--blue);
+      padding-left: 1.25rem;
+    }
+
+    /* Structured commentary sections */
+    .commentary-body .c-section + .c-section { margin-top: 1.25rem; }
+
+    .c-section-title {
+      display: block;
+      font-size: .6875rem;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .3rem;
+    }
+
+    .commentary-body.placeholder {
+      color: var(--muted);
+      border-left-color: var(--border);
+      font-style: italic;
+      font-size: .875rem;
+    }
+
+    .commentary-body.loading {
+      color: var(--muted);
+      border-left-color: var(--border);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-size: .875rem;
+    }
+
+    .commentary-body.loading .spinner-dark {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 1.5rem 2rem;
+      font-size: .75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--blue); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-title">
+      <h1>U.S. Macro Dashboard</h1>
+      <p>Data through {{ last_updated }} &nbsp;·&nbsp; FRED &amp; BLS</p>
+    </div>
+    <button id="refresh-btn" onclick="refreshData()">
+      <span id="refresh-icon">↻</span>
+      <span id="refresh-label">Refresh Data</span>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- Stat cards -->
+  <div class="stat-grid">
+    <div class="stat-card accent-red">
+      <div class="stat-label">Fed Funds Rate (US)</div>
+      <div class="stat-value">{{ stats.fed_funds }}</div>
+      <div class="stat-sub {{ stats.fed_funds_delta.cls }}">{{ stats.fed_funds_delta.label }}</div>
+    </div>
+    <div class="stat-card accent-blue">
+      <div class="stat-label">Unemployment (US)</div>
+      <div class="stat-value">{{ stats.unrate }}</div>
+      <div class="stat-sub {{ stats.unrate_delta.cls }}">{{ stats.unrate_delta.label }}</div>
+    </div>
+    <div class="stat-card accent-orange">
+      <div class="stat-label">CPI Inflation (US)</div>
+      <div class="stat-value">{{ stats.cpi_yoy }}</div>
+      <div class="stat-sub {{ stats.cpi_yoy_delta.cls }}">{{ stats.cpi_yoy_delta.label }}</div>
+    </div>
+    <div class="stat-card accent-teal">
+      <div class="stat-label">Nonfarm Payrolls (US)</div>
+      <div class="stat-value">{{ stats.payrolls }}</div>
+      <div class="stat-sub {{ stats.payrolls_delta.cls }}">{{ stats.payrolls_delta.label }}</div>
+    </div>
+    <div class="stat-card accent-slate">
+      <div class="stat-label">Private Sector (US)</div>
+      <div class="stat-value">{{ stats.payrolls_private }}</div>
+      <div class="stat-sub {{ stats.payrolls_private_delta.cls }}">{{ stats.payrolls_private_delta.label }}</div>
+    </div>
+    <div class="stat-card accent-brazil">
+      <div class="stat-label">Selic Rate</div>
+      <div class="stat-value">{{ stats.selic }}</div>
+      <div class="stat-sub {{ stats.selic_delta.cls }}">{{ stats.selic_delta.label }}</div>
+    </div>
+    <div class="stat-card accent-brazil">
+      <div class="stat-label">Brazil CPI (IPCA YoY)</div>
+      <div class="stat-value">{{ stats.ipca_yoy }}</div>
+      <div class="stat-sub {{ stats.ipca_yoy_delta.cls }}">{{ stats.ipca_yoy_delta.label }}</div>
+    </div>
+  </div>
+
+  <!-- Data freshness strip -->
+  <div class="data-freshness">
+    <span class="dot"></span>
+    Data through <strong>{{ last_updated }}</strong>
+    &nbsp;·&nbsp; FRED (Federal Reserve Bank of St. Louis), BLS (Bureau of Labor Statistics) &amp; BCB (Banco Central do Brasil)
+  </div>
+
+  <!-- Charts row 1 -->
+  <div class="chart-row">
+    <div class="chart-card">
+      <div id="chart-rates" class="chart-div"></div>
+    </div>
+    <div class="chart-card">
+      <div id="chart-inflation" class="chart-div"></div>
+    </div>
+  </div>
+
+  <!-- Charts row 2: payrolls level/MoM | sector breakdown -->
+  <div class="chart-row">
+    <div class="chart-card">
+      <div id="chart-payrolls" class="chart-div tall"></div>
+    </div>
+    <div class="chart-card">
+      <div id="chart-sector" class="chart-div tall"></div>
+    </div>
+  </div>
+
+  <!-- Charts row 3: Brazil Selic vs IPCA (full-width) -->
+  <div class="chart-row">
+    <div class="chart-card full">
+      <div id="chart-selic" class="chart-div"></div>
+    </div>
+  </div>
+
+  <!-- Commentary panel -->
+  <div class="commentary-card">
+    <div class="commentary-header">
+      <div>
+        <div class="commentary-title">Macro Commentary</div>
+        <div class="commentary-meta" id="commentary-meta">AI-generated analysis · powered by Claude</div>
+      </div>
+      <button id="commentary-btn" onclick="loadCommentary()">Generate Commentary</button>
+    </div>
+    <div class="commentary-body placeholder" id="commentary-body">
+      Click "Generate Commentary" to get a professional macro analysis based on the latest data.
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Data: <a href="https://fred.stlouisfed.org" target="_blank" rel="noopener">FRED</a>
+  (Federal Reserve Bank of St. Louis) &amp;
+  <a href="https://www.bls.gov" target="_blank" rel="noopener">BLS</a>
+  (Bureau of Labor Statistics) &amp;
+  <a href="https://www.bcb.gov.br" target="_blank" rel="noopener">BCB</a>
+  (Banco Central do Brasil) &nbsp;·&nbsp;
+  Updated monthly &nbsp;·&nbsp;
+  Built with Flask &amp; Plotly
+</footer>
+
+<div id="toast"></div>
+
+{# Chart data islands — type="application/json" keeps the linter out of Jinja expressions #}
+<script type="application/json" id="data-rates">{{ charts.rates | tojson }}</script>
+<script type="application/json" id="data-inflation">{{ charts.inflation | tojson }}</script>
+<script type="application/json" id="data-payrolls">{{ charts.payrolls | tojson }}</script>
+<script type="application/json" id="data-sector">{{ charts.sector | tojson }}</script>
+<script type="application/json" id="data-selic">{{ charts.selic | tojson }}</script>
+
+<script>
+  const PLOTLY_CONFIG = {
+    responsive: true,
+    displayModeBar: "hover",
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d", "zoom2d"],
+    displaylogo: false,
+  };
+
+  function getChartData(id) {
+    return JSON.parse(document.getElementById(id).textContent);
+  }
+
+  function renderChart(elementId, fig) {
+    fig.layout = Object.assign({
+      margin: { t: 48, r: 24, b: 40, l: 56 },
+      font: { family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", size: 12 },
+    }, fig.layout);
+    Plotly.newPlot(elementId, fig.data, fig.layout, PLOTLY_CONFIG);
+  }
+
+  renderChart("chart-rates",     getChartData("data-rates"));
+  renderChart("chart-inflation", getChartData("data-inflation"));
+  renderChart("chart-payrolls",  getChartData("data-payrolls"));
+  renderChart("chart-sector",    getChartData("data-sector"));
+  renderChart("chart-selic",     getChartData("data-selic"));
+
+  // ── Utilities ────────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = "show " + type;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.className = ""; }, 4000);
+  }
+
+  function setRefreshLabel(text) {
+    document.getElementById("refresh-label").textContent = text;
+  }
+
+  function resetRefreshBtn() {
+    const btn = document.getElementById("refresh-btn");
+    btn.disabled = false;
+    btn.innerHTML = '<span id="refresh-icon">↻</span><span id="refresh-label">Refresh Data</span>';
+  }
+
+  // ── Async refresh with status polling ────────────────────────────
+  let _pollTimer   = null;
+  let _pollStart   = null;
+
+  function _stopPolling() {
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  }
+
+  function _elapsed() {
+    return Math.round((Date.now() - _pollStart) / 1000);
+  }
+
+  function _pollStatus() {
+    fetch("/api/refresh/status")
+      .then(r => r.json())
+      .then(job => {
+        if (job.status === "running") {
+          setRefreshLabel(`${job.step} (${_elapsed()}s)`);
+          return;
+        }
+
+        _stopPolling();
+
+        if (job.status === "done") {
+          showToast(`Updated through ${job.last_updated} — reloading…`, "ok");
+          setTimeout(() => window.location.reload(), 1400);
+        } else if (job.status === "error") {
+          showToast("Refresh failed: " + (job.error || "unknown error"), "err");
+          resetRefreshBtn();
+        } else {
+          // "idle" — nothing was started; shouldn't happen in practice
+          resetRefreshBtn();
+        }
+      })
+      .catch(() => {
+        _stopPolling();
+        showToast("Lost connection to server", "err");
+        resetRefreshBtn();
+      });
+  }
+
+  function _beginPolling() {
+    _pollStart = Date.now();
+    _pollTimer = setInterval(_pollStatus, 1500);
+    _pollStatus(); // immediate first check
+  }
+
+  function refreshData() {
+    const btn = document.getElementById("refresh-btn");
+    btn.disabled = true;
+    document.getElementById("refresh-icon").outerHTML =
+      '<span class="spinner" id="refresh-icon"></span>';
+    setRefreshLabel("Starting…");
+
+    fetch("/api/refresh", { method: "POST" })
+      .then(r => {
+        if (r.status === 202) { _beginPolling(); return; }
+        if (r.status === 409) {
+          // Already running — just attach to the existing job
+          showToast("Refresh already in progress", "ok");
+          _beginPolling();
+          return;
+        }
+        return r.json().then(d => {
+          showToast("Could not start refresh: " + (d.error || r.status), "err");
+          resetRefreshBtn();
+        });
+      })
+      .catch(() => {
+        showToast("Network error — is the server running?", "err");
+        resetRefreshBtn();
+      });
+  }
+
+  // ── Commentary ───────────────────────────────────────────────────
+
+  /**
+   * Convert structured commentary text into HTML.
+   *
+   * Strategy:
+   *   1. Convert all **text** markers to <strong>text</strong> first, so header
+   *      detection works regardless of how Claude formats surrounding whitespace.
+   *   2. Split on blank lines to isolate sections.
+   *   3. If a section's first line is solely a <strong>…</strong> tag, pull it
+   *      out as a styled .c-section-title; the rest becomes the body paragraph.
+   *   4. Fall back to a plain div for any section without a recognised header.
+   */
+  function renderCommentary(text) {
+    // Step 1 — bold markers → HTML
+    const withBold = text.trim().replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Step 2 — split on blank lines
+    const sections = withBold.split(/\n\n+/);
+
+    return sections.map(section => {
+      const trimmed = section.trim();
+      // Step 3 — detect a leading <strong>Header</strong> line
+      const m = trimmed.match(/^<strong>(.+?)<\/strong>\s*\n?([\s\S]*)/);
+      if (m) {
+        const title = m[1].trim();
+        const body  = m[2].trim().replace(/\n/g, ' ');
+        return `<div class="c-section"><span class="c-section-title">${title}</span>${body}</div>`;
+      }
+      // Step 4 — fallback
+      return `<div class="c-section">${trimmed.replace(/\n/g, ' ')}</div>`;
+    }).join('');
+  }
+
+  async function loadCommentary() {
+    const btn  = document.getElementById("commentary-btn");
+    const body = document.getElementById("commentary-body");
+    const meta = document.getElementById("commentary-meta");
+
+    btn.disabled = true;
+    btn.textContent = "Generating…";
+    body.className = "commentary-body loading";
+    body.innerHTML = '<span class="spinner-dark"></span>Calling Claude…';
+
+    try {
+      const res  = await fetch("/api/commentary", { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        body.className = "commentary-body placeholder";
+        body.textContent = "Error: " + (data.error || "Unknown error. Check server logs.");
+        btn.textContent = "Retry";
+        btn.disabled = false;
+        return;
+      }
+
+      body.className = "commentary-body";
+      body.innerHTML = renderCommentary(data.commentary);
+
+      // Format timestamp in the user's local timezone
+      const ts        = new Date(data.generated_at);
+      const formatted = ts.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      const badge     = data.cached
+        ? '<span class="cache-badge">cached</span>'
+        : '';
+      meta.innerHTML  = `Generated ${formatted}${badge}`;
+      btn.textContent = "Regenerate";
+
+    } catch (e) {
+      body.className = "commentary-body placeholder";
+      body.textContent = "Network error — is the server running?";
+      btn.textContent = "Retry";
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+
+</body>
+</html>
