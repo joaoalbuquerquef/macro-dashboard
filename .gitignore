@@ -4,5 +4,6 @@ __pycache__/
 *.pyo
 .venv/
 venv/
-data/
+data/*
+!data/master.csv
 static/*.html

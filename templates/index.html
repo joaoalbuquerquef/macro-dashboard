@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Macro Dashboard</title>
+  <title>Painel Macro</title>
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -347,13 +347,14 @@
 <header>
   <div class="header-inner">
     <div class="header-title">
-      <h1>U.S. Macro Dashboard</h1>
-      <p>Data through {{ last_updated }} &nbsp;·&nbsp; FRED &amp; BLS</p>
+      <h1>Painel Macro — EUA e Brasil</h1>
+      <p>Dados até {{ last_updated }} &nbsp;·&nbsp; FRED, BLS e BCB</p>
     </div>
     <button id="refresh-btn" onclick="refreshData()">
       <span id="refresh-icon">↻</span>
-      <span id="refresh-label">Refresh Data</span>
+      <span id="refresh-label">Atualizar dados</span>
     </button>
+    <a href="/logout" style="color:#94A3B8;font-size:.8125rem;text-decoration:none;margin-left:.75rem">Sair</a>
   </div>
 </header>
 
@@ -362,37 +363,37 @@
   <!-- Stat cards -->
   <div class="stat-grid">
     <div class="stat-card accent-red">
-      <div class="stat-label">Fed Funds Rate (US)</div>
+      <div class="stat-label">Fed Funds (EUA)</div>
       <div class="stat-value">{{ stats.fed_funds }}</div>
       <div class="stat-sub {{ stats.fed_funds_delta.cls }}">{{ stats.fed_funds_delta.label }}</div>
     </div>
     <div class="stat-card accent-blue">
-      <div class="stat-label">Unemployment (US)</div>
+      <div class="stat-label">Desemprego (EUA)</div>
       <div class="stat-value">{{ stats.unrate }}</div>
       <div class="stat-sub {{ stats.unrate_delta.cls }}">{{ stats.unrate_delta.label }}</div>
     </div>
     <div class="stat-card accent-orange">
-      <div class="stat-label">CPI Inflation (US)</div>
+      <div class="stat-label">Inflação CPI (EUA)</div>
       <div class="stat-value">{{ stats.cpi_yoy }}</div>
       <div class="stat-sub {{ stats.cpi_yoy_delta.cls }}">{{ stats.cpi_yoy_delta.label }}</div>
     </div>
     <div class="stat-card accent-teal">
-      <div class="stat-label">Nonfarm Payrolls (US)</div>
+      <div class="stat-label">Payroll (EUA)</div>
       <div class="stat-value">{{ stats.payrolls }}</div>
       <div class="stat-sub {{ stats.payrolls_delta.cls }}">{{ stats.payrolls_delta.label }}</div>
     </div>
     <div class="stat-card accent-slate">
-      <div class="stat-label">Private Sector (US)</div>
+      <div class="stat-label">Setor privado (EUA)</div>
       <div class="stat-value">{{ stats.payrolls_private }}</div>
       <div class="stat-sub {{ stats.payrolls_private_delta.cls }}">{{ stats.payrolls_private_delta.label }}</div>
     </div>
     <div class="stat-card accent-brazil">
-      <div class="stat-label">Selic Rate</div>
+      <div class="stat-label">Taxa Selic</div>
       <div class="stat-value">{{ stats.selic }}</div>
       <div class="stat-sub {{ stats.selic_delta.cls }}">{{ stats.selic_delta.label }}</div>
     </div>
     <div class="stat-card accent-brazil">
-      <div class="stat-label">Brazil CPI (IPCA YoY)</div>
+      <div class="stat-label">IPCA em 12 meses</div>
       <div class="stat-value">{{ stats.ipca_yoy }}</div>
       <div class="stat-sub {{ stats.ipca_yoy_delta.cls }}">{{ stats.ipca_yoy_delta.label }}</div>
     </div>
@@ -401,7 +402,7 @@
   <!-- Data freshness strip -->
   <div class="data-freshness">
     <span class="dot"></span>
-    Data through <strong>{{ last_updated }}</strong>
+    Dados até <strong>{{ last_updated }}</strong>
     &nbsp;·&nbsp; FRED (Federal Reserve Bank of St. Louis), BLS (Bureau of Labor Statistics) &amp; BCB (Banco Central do Brasil)
   </div>
 
@@ -436,27 +437,27 @@
   <div class="commentary-card">
     <div class="commentary-header">
       <div>
-        <div class="commentary-title">Macro Commentary</div>
-        <div class="commentary-meta" id="commentary-meta">AI-generated analysis · powered by Claude</div>
+        <div class="commentary-title">Comentário macro</div>
+        <div class="commentary-meta" id="commentary-meta">Análise gerada por IA (Claude)</div>
       </div>
-      <button id="commentary-btn" onclick="loadCommentary()">Generate Commentary</button>
+      <button id="commentary-btn" onclick="loadCommentary()">Gerar comentário</button>
     </div>
     <div class="commentary-body placeholder" id="commentary-body">
-      Click "Generate Commentary" to get a professional macro analysis based on the latest data.
+      Clique em "Gerar comentário" para obter uma análise macro com base nos dados mais recentes.
     </div>
   </div>
 
 </main>
 
 <footer>
-  Data: <a href="https://fred.stlouisfed.org" target="_blank" rel="noopener">FRED</a>
+  Dados: <a href="https://fred.stlouisfed.org" target="_blank" rel="noopener">FRED</a>
   (Federal Reserve Bank of St. Louis) &amp;
   <a href="https://www.bls.gov" target="_blank" rel="noopener">BLS</a>
   (Bureau of Labor Statistics) &amp;
   <a href="https://www.bcb.gov.br" target="_blank" rel="noopener">BCB</a>
   (Banco Central do Brasil) &nbsp;·&nbsp;
-  Updated monthly &nbsp;·&nbsp;
-  Built with Flask &amp; Plotly
+  Atualização mensal &nbsp;·&nbsp;
+  Feito com Flask e Plotly
 </footer>
 
 <div id="toast"></div>
@@ -510,7 +511,7 @@
   function resetRefreshBtn() {
     const btn = document.getElementById("refresh-btn");
     btn.disabled = false;
-    btn.innerHTML = '<span id="refresh-icon">↻</span><span id="refresh-label">Refresh Data</span>';
+    btn.innerHTML = '<span id="refresh-icon">↻</span><span id="refresh-label">Atualizar dados</span>';
   }
 
   // ── Async refresh with status polling ────────────────────────────
@@ -537,10 +538,10 @@
         _stopPolling();
 
         if (job.status === "done") {
-          showToast(`Updated through ${job.last_updated} — reloading…`, "ok");
+          showToast(`Atualizado até ${job.last_updated} — recarregando…`, "ok");
           setTimeout(() => window.location.reload(), 1400);
         } else if (job.status === "error") {
-          showToast("Refresh failed: " + (job.error || "unknown error"), "err");
+          showToast("Falha na atualização: " + (job.error || "erro desconhecido"), "err");
           resetRefreshBtn();
         } else {
           // "idle" — nothing was started; shouldn't happen in practice
@@ -549,7 +550,7 @@
       })
       .catch(() => {
         _stopPolling();
-        showToast("Lost connection to server", "err");
+        showToast("Conexão com o servidor perdida", "err");
         resetRefreshBtn();
       });
   }
@@ -565,24 +566,24 @@
     btn.disabled = true;
     document.getElementById("refresh-icon").outerHTML =
       '<span class="spinner" id="refresh-icon"></span>';
-    setRefreshLabel("Starting…");
+    setRefreshLabel("Iniciando…");
 
     fetch("/api/refresh", { method: "POST" })
       .then(r => {
         if (r.status === 202) { _beginPolling(); return; }
         if (r.status === 409) {
           // Already running — just attach to the existing job
-          showToast("Refresh already in progress", "ok");
+          showToast("Atualização já em andamento", "ok");
           _beginPolling();
           return;
         }
         return r.json().then(d => {
-          showToast("Could not start refresh: " + (d.error || r.status), "err");
+          showToast("Não foi possível iniciar a atualização: " + (d.error || r.status), "err");
           resetRefreshBtn();
         });
       })
       .catch(() => {
-        showToast("Network error — is the server running?", "err");
+        showToast("Erro de rede — o servidor está no ar?", "err");
         resetRefreshBtn();
       });
   }
@@ -627,9 +628,9 @@
     const meta = document.getElementById("commentary-meta");
 
     btn.disabled = true;
-    btn.textContent = "Generating…";
+    btn.textContent = "Gerando…";
     body.className = "commentary-body loading";
-    body.innerHTML = '<span class="spinner-dark"></span>Calling Claude…';
+    body.innerHTML = '<span class="spinner-dark"></span>Consultando o Claude…';
 
     try {
       const res  = await fetch("/api/commentary", { method: "POST" });
@@ -637,8 +638,8 @@
 
       if (!res.ok) {
         body.className = "commentary-body placeholder";
-        body.textContent = "Error: " + (data.error || "Unknown error. Check server logs.");
-        btn.textContent = "Retry";
+        body.textContent = "Erro: " + (data.error || "Erro desconhecido. Verifique os logs do servidor.");
+        btn.textContent = "Tentar de novo";
         btn.disabled = false;
         return;
       }
@@ -648,17 +649,17 @@
 
       // Format timestamp in the user's local timezone
       const ts        = new Date(data.generated_at);
-      const formatted = ts.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      const formatted = ts.toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" });
       const badge     = data.cached
-        ? '<span class="cache-badge">cached</span>'
+        ? '<span class="cache-badge">em cache</span>'
         : '';
-      meta.innerHTML  = `Generated ${formatted}${badge}`;
-      btn.textContent = "Regenerate";
+      meta.innerHTML  = `Gerado em ${formatted}${badge}`;
+      btn.textContent = "Gerar novamente";
 
     } catch (e) {
       body.className = "commentary-body placeholder";
-      body.textContent = "Network error — is the server running?";
-      btn.textContent = "Retry";
+      body.textContent = "Erro de rede — o servidor está no ar?";
+      btn.textContent = "Tentar de novo";
     } finally {
       btn.disabled = false;
     }

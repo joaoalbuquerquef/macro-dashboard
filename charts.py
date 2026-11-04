@@ -44,9 +44,9 @@ def chart_rates(df: pd.DataFrame) -> go.Figure:
         go.Scatter(
             x=df["date"],
             y=df["FEDFUNDS"],
-            name="Fed Funds Rate (%)",
+            name="Fed Funds (%)",
             line=dict(color=COLORS["fed_funds"], width=2),
-            hovertemplate="%{x|%b %Y}<br>Fed Funds: %{y:.2f}%<extra></extra>",
+            hovertemplate="%{x|%m/%Y}<br>Fed Funds: %{y:.2f}%<extra></extra>",
         ),
         secondary_y=False,
     )
@@ -55,15 +55,15 @@ def chart_rates(df: pd.DataFrame) -> go.Figure:
         go.Scatter(
             x=df["date"],
             y=df["UNRATE"],
-            name="Unemployment Rate (%)",
+            name="Taxa de desemprego (%)",
             line=dict(color=COLORS["unemployment"], width=2, dash="dot"),
-            hovertemplate="%{x|%b %Y}<br>Unemployment: %{y:.1f}%<extra></extra>",
+            hovertemplate="%{x|%m/%Y}<br>Desemprego: %{y:.1f}%<extra></extra>",
         ),
         secondary_y=True,
     )
 
     fig.update_layout(
-        title="Fed Funds Rate vs Unemployment Rate",
+        title="EUA: Fed Funds vs taxa de desemprego",
         hovermode="x unified",
         # Legend below the chart — avoids collision with the title at top-left
         # and the two y-axis labels occupying both top corners.
@@ -72,9 +72,9 @@ def chart_rates(df: pd.DataFrame) -> go.Figure:
         paper_bgcolor="white",
     )
     fig.update_xaxes(showgrid=True, gridcolor="#EEEEEE")
-    fig.update_yaxes(title_text="Fed Funds Rate (%)", secondary_y=False,
+    fig.update_yaxes(title_text="Fed Funds (%)", secondary_y=False,
                      showgrid=True, gridcolor="#EEEEEE")
-    fig.update_yaxes(title_text="Unemployment Rate (%)", secondary_y=True,
+    fig.update_yaxes(title_text="Taxa de desemprego (%)", secondary_y=True,
                      showgrid=False)
 
     return fig
@@ -92,11 +92,11 @@ def chart_inflation(df: pd.DataFrame) -> go.Figure:
         go.Scatter(
             x=plot_df["date"],
             y=plot_df["cpi_yoy"],
-            name="CPI YoY %",
+            name="CPI em 12 meses (%)",
             fill="tozeroy",
             fillcolor="rgba(244, 162, 97, 0.2)",
             line=dict(color=COLORS["inflation"], width=2),
-            hovertemplate="%{x|%b %Y}<br>CPI YoY: %{y:.2f}%<extra></extra>",
+            hovertemplate="%{x|%m/%Y}<br>CPI 12m: %{y:.2f}%<extra></extra>",
         )
     )
 
@@ -105,13 +105,13 @@ def chart_inflation(df: pd.DataFrame) -> go.Figure:
         y=2.0,
         line_dash="dash",
         line_color="#888888",
-        annotation_text="2% target",
+        annotation_text="Meta de 2%",
         annotation_position="bottom right",
     )
 
     fig.update_layout(
-        title="CPI Inflation (Year-over-Year %)",
-        yaxis_title="YoY Change (%)",
+        title="EUA: inflação ao consumidor (CPI, variação em 12 meses)",
+        yaxis_title="Variação em 12 meses (%)",
         hovermode="x unified",
         plot_bgcolor="white",
         paper_bgcolor="white",
@@ -131,7 +131,7 @@ def chart_payrolls(df: pd.DataFrame) -> go.Figure:
         shared_xaxes=True,
         row_heights=[0.65, 0.35],
         vertical_spacing=0.08,
-        subplot_titles=("Total Nonfarm Payrolls (thousands)", "Monthly Change (thousands)"),
+        subplot_titles=("Empregos não agrícolas — total (milhares)", "Variação mensal (milhares)"),
     )
 
     # Top: payrolls level
@@ -139,9 +139,9 @@ def chart_payrolls(df: pd.DataFrame) -> go.Figure:
         go.Scatter(
             x=df["date"],
             y=df["payrolls_total"],
-            name="Total Payrolls",
+            name="Payroll total",
             line=dict(color=COLORS["payrolls"], width=2),
-            hovertemplate="%{x|%b %Y}<br>Payrolls: %{y:,.0f}k<extra></extra>",
+            hovertemplate="%{x|%m/%Y}<br>Payroll: %{y:,.0f} mil<extra></extra>",
         ),
         row=1, col=1,
     )
@@ -155,15 +155,15 @@ def chart_payrolls(df: pd.DataFrame) -> go.Figure:
         go.Bar(
             x=mom["date"],
             y=mom["payrolls_mom"],
-            name="MoM Change",
+            name="Variação mensal",
             marker_color=bar_colors,
-            hovertemplate="%{x|%b %Y}<br>MoM: %{y:+,.0f}k<extra></extra>",
+            hovertemplate="%{x|%m/%Y}<br>Variação: %{y:+,.0f} mil<extra></extra>",
         ),
         row=2, col=1,
     )
 
     fig.update_layout(
-        title="Nonfarm Payrolls",
+        title="EUA: payroll (empregos não agrícolas)",
         hovermode="x unified",
         showlegend=False,
         plot_bgcolor="white",
@@ -186,11 +186,11 @@ def chart_payrolls_sector(df: pd.DataFrame) -> go.Figure:
         go.Scatter(
             x=df["date"],
             y=df["payrolls_goods"],
-            name="Goods-Producing",
+            name="Produção de bens",
             stackgroup="sector",
             fillcolor="rgba(38, 70, 83, 0.65)",
             line=dict(color=COLORS["payrolls_mom"], width=1.5),
-            hovertemplate="%{x|%b %Y}<br>Goods: %{y:,.0f}k<extra></extra>",
+            hovertemplate="%{x|%m/%Y}<br>Bens: %{y:,.0f} mil<extra></extra>",
         )
     )
 
@@ -199,17 +199,17 @@ def chart_payrolls_sector(df: pd.DataFrame) -> go.Figure:
         go.Scatter(
             x=df["date"],
             y=df["payrolls_private_services"],
-            name="Private Services",
+            name="Serviços privados",
             stackgroup="sector",
             fillcolor="rgba(42, 157, 143, 0.55)",
             line=dict(color=COLORS["payrolls"], width=1.5),
-            hovertemplate="%{x|%b %Y}<br>Private Services: %{y:,.0f}k<extra></extra>",
+            hovertemplate="%{x|%m/%Y}<br>Serviços privados: %{y:,.0f} mil<extra></extra>",
         )
     )
 
     fig.update_layout(
-        title="Private Employment by Sector — Goods vs Services (thousands)",
-        yaxis_title="Employees (thousands)",
+        title="EUA: emprego privado por setor — bens vs serviços (milhares)",
+        yaxis_title="Empregados (milhares)",
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5),
         plot_bgcolor="white",
@@ -236,9 +236,9 @@ def chart_selic(df: pd.DataFrame) -> go.Figure:
     if not has_selic and not has_ipca:
         fig = go.Figure()
         fig.update_layout(
-            title="Brazil: Selic Rate vs IPCA Inflation — Data unavailable",
+            title="Brasil: Selic vs IPCA — dados indisponíveis",
             annotations=[dict(
-                text="Brazil data could not be loaded from the BCB API.",
+                text="Não foi possível carregar os dados do Brasil pela API do BCB.",
                 x=0.5, y=0.5, xref="paper", yref="paper",
                 showarrow=False, font=dict(size=13, color="#6B7280"),
             )],
@@ -254,9 +254,9 @@ def chart_selic(df: pd.DataFrame) -> go.Figure:
             go.Scatter(
                 x=df["date"],
                 y=df["selic"],
-                name="Selic Rate (% p.a.)",
+                name="Selic (% a.a.)",
                 line=dict(color="#E76F51", width=2),   # burnt orange — distinct from US red
-                hovertemplate="%{x|%b %Y}<br>Selic: %{y:.2f}% p.a.<extra></extra>",
+                hovertemplate="%{x|%m/%Y}<br>Selic: %{y:.2f}% a.a.<extra></extra>",
             ),
             secondary_y=False,
         )
@@ -267,24 +267,24 @@ def chart_selic(df: pd.DataFrame) -> go.Figure:
             go.Scatter(
                 x=plot_df["date"],
                 y=plot_df["ipca_yoy"],
-                name="IPCA YoY (%)",
+                name="IPCA em 12 meses (%)",
                 line=dict(color="#52B788", width=2, dash="dot"),  # sage green
-                hovertemplate="%{x|%b %Y}<br>IPCA YoY: %{y:.2f}%<extra></extra>",
+                hovertemplate="%{x|%m/%Y}<br>IPCA 12m: %{y:.2f}%<extra></extra>",
             ),
             secondary_y=True,
         )
 
     fig.update_layout(
-        title="Brazil: Selic Rate vs IPCA Inflation (YoY)",
+        title="Brasil: Selic vs IPCA em 12 meses",
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
         plot_bgcolor="white",
         paper_bgcolor="white",
     )
     fig.update_xaxes(showgrid=True, gridcolor="#EEEEEE")
-    fig.update_yaxes(title_text="Selic Rate (% p.a.)", secondary_y=False,
+    fig.update_yaxes(title_text="Selic (% a.a.)", secondary_y=False,
                      showgrid=True, gridcolor="#EEEEEE")
-    fig.update_yaxes(title_text="IPCA YoY (%)", secondary_y=True, showgrid=False)
+    fig.update_yaxes(title_text="IPCA em 12 meses (%)", secondary_y=True, showgrid=False)
 
     return fig
 

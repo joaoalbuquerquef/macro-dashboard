@@ -8,6 +8,8 @@ import anthropic
 import pandas as pd
 from flask import Flask, render_template, jsonify
 
+from auth import init_auth
+
 from charts import (
     load_master,
     chart_rates,
@@ -18,6 +20,22 @@ from charts import (
 )
 
 app = Flask(__name__)
+init_auth(app, "Painel Macro")
+
+_MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
+          "agosto", "setembro", "outubro", "novembro", "dezembro"]
+_MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+
+
+def _br(txt: str) -> str:
+    """Troca o ponto decimal por vírgula."""
+    return txt.replace(".", ",")
+
+
+def _mes_ano(ts) -> str:
+    """Ex.: 'setembro de 2026'."""
+    ts = pd.Timestamp(ts)
+    return f"{_MESES[ts.month - 1]} de {ts.year}"
 
 # Ensure the data directory exists (Railway containers start with a clean filesystem)
 os.makedirs("data", exist_ok=True)
@@ -27,33 +45,34 @@ _CACHE_TTL = timedelta(hours=12)
 _commentary_cache: dict = {"text": None, "generated_at": None}
 
 _SYSTEM_PROMPT = """\
-You are a senior macro strategist at a major asset management firm.
-Given economic data, write exactly three sections of professional commentary suitable for a client note.
-Each section must begin with its title as a bold header on its own line. \
-Be dense and precise — cite the specific figures provided and state the implication directly. \
-No padding, no hedging phrases, no throat-clearing.
-Use this exact structure:
+Você é um estrategista macro sênior de uma grande gestora de recursos.
+A partir dos dados econômicos fornecidos, escreva exatamente três seções de comentário profissional, \
+adequado a uma carta a clientes, em português do Brasil.
+Cada seção deve começar com o título em negrito, sozinho numa linha. \
+Seja denso e preciso: cite os números fornecidos e diga a implicação diretamente. \
+Sem enchimento, sem rodeios, sem frases de abertura.
+Use exatamente esta estrutura:
 
-**United States**
-4–5 sentences. Cover: (1) where the Fed Funds Rate stands in real terms against current CPI, \
-(2) the direction and pace of the inflation trajectory and what it implies for the easing timeline, \
-(3) labor market momentum — payroll trend and unemployment level and what they signal about \
-consumer spending and wage pressure, (4) one or two concrete forward risks to the outlook.
+**Estados Unidos**
+4 a 5 frases. Aborde: (1) onde está a Fed Funds em termos reais frente ao CPI atual, \
+(2) a direção e o ritmo da trajetória da inflação e o que isso implica para o calendário de cortes, \
+(3) o momento do mercado de trabalho — tendência do payroll e nível de desemprego — e o que sinalizam \
+sobre consumo e pressão salarial, (4) um ou dois riscos concretos para o cenário.
 
-**Brazil**
-4–5 sentences. Cover: (1) the Selic rate in real terms against IPCA and what that implies about \
-the restrictiveness of BCB policy, (2) the pace of IPCA convergence toward target and whether it \
-is stalling or accelerating, (3) the fiscal constraint on the easing cycle, \
-(4) how the BCB cycle compares with the Fed — same direction or diverging — and the BRL implication. \
-If Brazil data is not provided, write one sentence only noting its absence.
+**Brasil**
+4 a 5 frases. Aborde: (1) a Selic em termos reais frente ao IPCA e o que isso diz sobre \
+o grau de aperto da política do BCB, (2) o ritmo de convergência do IPCA à meta e se ela está \
+travando ou acelerando, (3) a restrição fiscal sobre o ciclo de afrouxamento, \
+(4) como o ciclo do BCB se compara ao do Fed — mesma direção ou divergente — e a implicação para o real. \
+Se os dados do Brasil não forem fornecidos, escreva apenas uma frase registrando a ausência.
 
-**Asset Management Implications**
-Exactly 3 sentences — one per asset class. Fixed income: a directional duration call with the rate \
-rationale. Equities: cyclicals vs defensives with one reason. \
-EM assets: risk-on or risk-off with one reason drawn from the policy divergence above.
+**Implicações para a gestão de recursos**
+Exatamente 3 frases, uma por classe de ativo. Renda fixa: uma recomendação direcional de duration com a \
+justificativa de juros. Ações: cíclicas versus defensivas, com uma razão. \
+Ativos emergentes: apetite ou aversão a risco, com uma razão tirada da divergência de política acima.
 
-Rules: flowing prose only — no bullet points within sections, no preamble, no closing pleasantries. \
-Begin the first section immediately after its header.\
+Regras: apenas prosa corrida — sem marcadores dentro das seções, sem introdução, sem despedidas. \
+Comece a primeira seção logo após o título. Use vírgula como separador decimal.\
 """
 
 
@@ -67,9 +86,9 @@ def _build_data_block(df: pd.DataFrame) -> str:
     cpi      = last("CPIAUCSL")
     cpi_yoy  = last("cpi_yoy")
     pmom     = last("payrolls_mom")
-    as_of    = df["date"].max().strftime("%B %Y")
+    as_of    = _mes_ano(df["date"].max())
 
-    lines = [f"U.S. Economic Snapshot — {as_of}"]
+    lines = [f"Panorama econômico dos EUA — {as_of}"]
     lines.append(f"• Federal Funds Rate: {fedfunds:.2f}%"          if fedfunds is not None else "• Federal Funds Rate: N/A")
     lines.append(f"• Unemployment Rate: {unrate:.1f}%"             if unrate   is not None else "• Unemployment Rate: N/A")
     lines.append(f"• CPI (All Urban Consumers): {cpi:.3f} (Index)" if cpi      is not None else "• CPI: N/A")
@@ -81,7 +100,7 @@ def _build_data_block(df: pd.DataFrame) -> str:
     ipca_yoy = last("ipca_yoy") if "ipca_yoy" in df.columns else None
     if selic is not None or ipca_yoy is not None:
         lines.append("")
-        lines.append("Brazil Economic Snapshot")
+        lines.append("Panorama econômico do Brasil")
         lines.append(f"• Selic Rate: {selic:.2f}% p.a."  if selic    is not None else "• Selic Rate: N/A")
         lines.append(f"• IPCA (12-month YoY): {ipca_yoy:.2f}%" if ipca_yoy is not None else "• IPCA YoY: N/A")
 
@@ -92,10 +111,10 @@ def _build_data_block(df: pd.DataFrame) -> str:
 # Each tuple: (script, label, optional)
 # optional=True → a non-zero exit is logged but does not abort the pipeline.
 _PIPELINE_STEPS = [
-    ("explore_fred.py", "Fetching FRED data…",  False),
-    ("explore_bls.py",  "Fetching BLS data…",   False),
-    ("explore_bcb.py",  "Fetching BCB data…",   True),
-    ("build_master.py", "Rebuilding dataset…",  False),
+    ("explore_fred.py", "Buscando dados do FRED…",  False),
+    ("explore_bls.py",  "Buscando dados do BLS…",   False),
+    ("explore_bcb.py",  "Buscando dados do BCB…",   True),
+    ("build_master.py", "Reconstruindo a base…",  False),
 ]
 
 _refresh_lock = threading.Lock()
@@ -132,7 +151,7 @@ def _run_pipeline() -> None:
             with _refresh_lock:
                 _refresh_job.update({
                     "status":      "error",
-                    "step":        f"Failed at {script}",
+                    "step":        f"Falhou em {script}",
                     "finished_at": datetime.now(),
                     "error":       result.stderr.strip() or result.stdout.strip(),
                 })
@@ -145,9 +164,9 @@ def _run_pipeline() -> None:
     with _refresh_lock:
         _refresh_job.update({
             "status":       "done",
-            "step":         "Complete",
+            "step":         "Concluído",
             "finished_at":  datetime.now(),
-            "last_updated": df["date"].max().strftime("%B %Y"),
+            "last_updated": _mes_ano(df["date"].max()),
             "error":        None,
         })
 
@@ -176,21 +195,21 @@ def _get_stats(df: pd.DataFrame) -> dict:
             return {"label": "—", "cls": "change-neutral"}
 
         ch    = curr - prev
-        month = prev_ts.strftime("%b")
+        month = _MESES_ABREV[prev_ts.month - 1]
 
         # Treat micro-changes as unchanged (< 0.005pp or < 500 jobs)
         neutral_threshold = 0.5 if unit == "k" else 0.005
         if abs(ch) < neutral_threshold:
-            return {"label": f"→ unch. vs {month}", "cls": "change-neutral"}
+            return {"label": f"→ estável vs {month}", "cls": "change-neutral"}
 
         arrow   = "↑" if ch > 0 else "↓"
         is_good = (ch < 0) if good == "down" else (ch > 0)
 
         if unit == "pp":
-            label = f"{arrow} {abs(ch):.2f}pp vs {month}"
+            label = f"{arrow} {abs(ch):.2f} p.p. vs {month}".replace(".", ",", 1)
         else:
             sign  = "+" if ch > 0 else ""
-            label = f"{arrow} {sign}{ch:,.0f}k vs {month}"
+            label = f"{arrow} {sign}{ch:,.0f} mil vs {month}".replace(",", ".")
 
         return {"label": label, "cls": "change-pos" if is_good else "change-neg"}
 
@@ -201,36 +220,36 @@ def _get_stats(df: pd.DataFrame) -> dict:
     pp_c, pp_p, pp_pd = _last_two("payrolls_private")
 
     # Brazil stats — graceful fallback when BCB data is absent
-    _BCB_UNAVAIL = {"label": "Data unavailable", "cls": "change-neutral"}
+    _BCB_UNAVAIL = {"label": "Dados indisponíveis", "cls": "change-neutral"}
     has_selic    = "selic"    in df.columns and not df["selic"].isna().all()
     has_ipca_yoy = "ipca_yoy" in df.columns and not df["ipca_yoy"].isna().all()
 
     if has_selic:
         sl_c, sl_p, sl_pd = _last_two("selic")
-        selic_val   = f"{sl_c:.2f}% p.a." if sl_c is not None else "N/A"
+        selic_val   = _br(f"{sl_c:.2f}% a.a.") if sl_c is not None else "N/D"
         selic_delta = _delta(sl_c, sl_p, sl_pd, good="down", unit="pp")
     else:
-        selic_val   = "Unavailable"
+        selic_val   = "Indisponível"
         selic_delta = _BCB_UNAVAIL
 
     if has_ipca_yoy:
         iy_c, iy_p, iy_pd = _last_two("ipca_yoy")
-        ipca_val   = f"{iy_c:.2f}%" if iy_c is not None else "N/A"
+        ipca_val   = _br(f"{iy_c:.2f}%") if iy_c is not None else "N/D"
         ipca_delta = _delta(iy_c, iy_p, iy_pd, good="down", unit="pp")
     else:
-        ipca_val   = "Unavailable"
+        ipca_val   = "Indisponível"
         ipca_delta = _BCB_UNAVAIL
 
     return {
-        "fed_funds":              f"{ff_c:.2f}%"   if ff_c is not None else "N/A",
+        "fed_funds":              _br(f"{ff_c:.2f}%")   if ff_c is not None else "N/D",
         "fed_funds_delta":        _delta(ff_c, ff_p, ff_pd, good="down", unit="pp"),
-        "unrate":                 f"{ur_c:.1f}%"   if ur_c is not None else "N/A",
+        "unrate":                 _br(f"{ur_c:.1f}%")   if ur_c is not None else "N/D",
         "unrate_delta":           _delta(ur_c, ur_p, ur_pd, good="down", unit="pp"),
-        "cpi_yoy":                f"{cy_c:.2f}%"   if cy_c is not None else "N/A",
+        "cpi_yoy":                _br(f"{cy_c:.2f}%")   if cy_c is not None else "N/D",
         "cpi_yoy_delta":          _delta(cy_c, cy_p, cy_pd, good="down", unit="pp"),
-        "payrolls":               f"{pt_c:,.0f}k"  if pt_c is not None else "N/A",
+        "payrolls":               f"{pt_c:,.0f} mil".replace(",", ".")  if pt_c is not None else "N/D",
         "payrolls_delta":         _delta(pt_c, pt_p, pt_pd, good="up", unit="k"),
-        "payrolls_private":       f"{pp_c:,.0f}k"  if pp_c is not None else "N/A",
+        "payrolls_private":       f"{pp_c:,.0f} mil".replace(",", ".")  if pp_c is not None else "N/D",
         "payrolls_private_delta": _delta(pp_c, pp_p, pp_pd, good="up", unit="k"),
         "selic":                  selic_val,
         "selic_delta":            selic_delta,
@@ -254,7 +273,7 @@ def index():
         "index.html",
         charts=charts,
         stats=_get_stats(df),
-        last_updated=df["date"].max().strftime("%B %Y"),
+        last_updated=_mes_ano(df["date"].max()),
     )
 
 
@@ -274,7 +293,7 @@ def api_refresh():
 
         _refresh_job.update({
             "status":      "running",
-            "step":        "Starting…",
+            "step":        "Iniciando…",
             "started_at":  datetime.now(),
             "finished_at": None,
             "last_updated": None,
@@ -303,7 +322,7 @@ def api_commentary():
     global _commentary_cache
 
     if not os.getenv("ANTHROPIC_API_KEY"):
-        return jsonify({"error": "ANTHROPIC_API_KEY is not configured"}), 503
+        return jsonify({"error": "A chave ANTHROPIC_API_KEY não está configurada"}), 503
 
     now = datetime.now()
     cached_at = _commentary_cache["generated_at"]
@@ -337,6 +356,13 @@ def api_commentary():
         "generated_at": now.isoformat(),
         "cached":       False,
     })
+
+
+# No Railway o contêiner começa com o master.csv do último deploy: atualiza em segundo plano ao subir.
+if os.getenv("RAILWAY_ENVIRONMENT") and os.getenv("AUTO_REFRESH", "1") == "1":
+    with _refresh_lock:
+        _refresh_job.update({"status": "running", "step": "Iniciando…", "started_at": datetime.now()})
+    threading.Thread(target=_run_pipeline, daemon=True).start()
 
 
 if __name__ == "__main__":
