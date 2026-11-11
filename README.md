@@ -1,5 +1,7 @@
 # Macro Dashboard
 
+🇺🇸 **English** · 🇧🇷 [Português](README.pt-BR.md)
+
 **A live macroeconomic dashboard covering U.S. and Brazilian indicators — with AI-generated commentary written in the style of a sell-side macro strategist.**
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Dashboard-blue?style=flat-square)](https://your-deployment-url-here)
