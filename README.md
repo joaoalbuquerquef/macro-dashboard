@@ -4,7 +4,6 @@
 
 **A live macroeconomic dashboard covering U.S. and Brazilian indicators — with AI-generated commentary written in the style of a sell-side macro strategist.**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Dashboard-blue?style=flat-square)](https://your-deployment-url-here)
 ![Python](https://img.shields.io/badge/Python-3.11+-informational?style=flat-square)
 ![Flask](https://img.shields.io/badge/Flask-3.x-lightgrey?style=flat-square)
 ![Plotly](https://img.shields.io/badge/Plotly-5.x-3F4F75?style=flat-square)
@@ -81,7 +80,7 @@ The prompt uses `cache_control: ephemeral` on the system prompt, which pins it t
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-username/macro-dashboard.git
+git clone https://github.com/joaoalbuquerquef/macro-dashboard.git
 cd macro-dashboard
 
 # 2. Create and activate a virtual environment
